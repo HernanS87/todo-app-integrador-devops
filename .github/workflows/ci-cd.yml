@@ -1,0 +1,86 @@
+# CI/CD completo: test + build + deploy si todo sale bien
+name: CI/CD - Test, Build y Deploy en EC2
+
+# Cuándo debe ejecutarse este workflow
+on:
+  push:
+    branches: [main]  # Solo se ejecuta si hacés push a esta rama
+  pull_request:                             # También se ejecuta si creás un PR (por defecto desde cualquier rama)
+
+# Definimos los "jobs", o sea, las tareas independientes que se pueden correr
+jobs:
+  test:                     # Nombre del job (puede haber más como 'build', 'deploy', etc.)
+    runs-on: ubuntu-latest  # GitHub provee una máquina virtual Ubuntu para correr este job
+
+    # Acá definimos servicios adicionales que deben estar disponibles (como contenedores)
+    services:
+      mysql:
+        image: mysql:8.0  # Imagen oficial de MySQL
+        env:              # Variables de entorno para inicializar la base dentro del contenedor
+          MYSQL_ROOT_PASSWORD: MiPass123
+          MYSQL_DATABASE: appdb
+        ports:
+          - 3310:3306     # Mapea el puerto 3306 del contenedor a 3310 en el host (GitHub runner)
+        options: >-       # Chequeos de salud para esperar que la base esté lista
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    # Variables de entorno accesibles por tu app durante la ejecución
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3310
+      DB_USER: root
+      DB_PASS: MiPass123
+      DB_NAME: appdb
+      NODE_ENV: test
+
+    # Lista de pasos que se ejecutan secuencialmente
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3  # Clona el repositorio en el runner
+
+      - name: Instalar dependencias del backend
+        working-directory: backend
+        run: npm ci  # Instala dependencias de forma rápida y exacta (usa package-lock.json)
+
+      - name: Inicializar base de datos desde script SQL
+        working-directory: db-init   # Ejecuta el init.sql dentro del contenedor de MySQL
+        run: | 
+          sudo apt-get update
+          sudo apt-get install -y mysql-client  # Instalamos el cliente mysql para ejecutar el script
+          mysql -h 127.0.0.1 -P 3310 -u root -pMiPass123 appdb < init.sql 
+          
+
+      - name: Ejecutar tests con Jest
+        working-directory: backend
+        run: npm test  # Lanza los tests de integración que usan Supertest
+  
+  
+  build:                      # Nombre del segundo job, que construye las imágenes Docker
+    runs-on: ubuntu-latest
+    needs: test  # Este job solo se ejecuta si 'test' terminó exitosamente
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Construir imagen del backend
+        working-directory: backend
+        run: |
+          docker build -t hernans87/todo-app-backend:latest .
+
+      - name: Construir imagen del frontend
+        working-directory: frontend
+        run: |
+          docker build -t hernans87/todo-app-frontend:latest .
+
+      - name: Login a Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Push de imagen del backend a Docker Hub
+        run: docker push hernans87/todo-app-backend:latest
+
+      - name: Push de imagen del frontend a Docker Hub
+        run: docker push hernans87/todo-app-frontend:latest

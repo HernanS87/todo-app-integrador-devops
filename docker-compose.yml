@@ -15,7 +15,7 @@ services:
       - app-net  # Conecta el contenedor a la red personalizada 'app-net'
 
   backend:
-    image: todo-app-backend:1.0  # Imagen propia del backend subida a Docker Hub
+    image: hernans87/todo-app-backend  # Imagen propia del backend subida a Docker Hub
     restart: unless-stopped
     depends_on:
       - db  # Indica que el backend depende del servicio db, lo arranca después
@@ -31,7 +31,7 @@ services:
       - app-net  # Se conecta a la misma red para comunicarse con MySQL
 
   frontend:
-    image: todo-app-frontend:1.0  # Imagen propia del frontend subida a Docker Hub
+    image: hernans87/todo-app-frontend  # Imagen propia del frontend subida a Docker Hub
     restart: unless-stopped
     depends_on:
       - backend  # Espera a que el backend esté arriba antes de arrancar
