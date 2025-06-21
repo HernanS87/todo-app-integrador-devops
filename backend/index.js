@@ -1,10 +1,13 @@
-import express from 'express';
+import express, { json } from 'express';
+import cors from 'cors';
+import { tasksRouter } from './routes/tasks.js';
 
 const app = express();
 
-app.use('/', (req, res) => {
-  res.send('<h1>API - TodoApp</h1>');
-});
+app.use(cors())
+app.use(json());
+
+app.use('/api/tasks', tasksRouter);
 
 app.listen(3000, () => {
   console.log('API escuchando en http://localhost:3000');
