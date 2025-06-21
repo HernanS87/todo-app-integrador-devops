@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { TaskFormComponent } from '../task-form/task-form.component';
+import { TaskService } from '../../services/task.service';
 import { Task } from '../../models/task.model';
+import { CommonModule } from '@angular/common';
+import { TaskFormComponent } from "../task-form/task-form.component";
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-task-list',
@@ -14,16 +15,13 @@ export class TaskListComponent implements OnInit {
   tasks: Task[] = [];
   editing?: Task;
 
-  ngOnInit() {
-    // Datos simulados para desarrollo
-    this.tasks = [
-      { id: 1, title: 'Tarea de ejemplo 1', completed: false },
-      { id: 2, title: 'Tarea de ejemplo 2', completed: true },
-    ];
-  }
+  constructor(private svc: TaskService) {}
+
+  ngOnInit() { this.load(); }
+  load() { this.svc.getTasks().subscribe(ts => this.tasks = ts); }
 
   toggle(t: Task) {
-    console.log('Toggle', t.completed);
+    this.svc.updateTask(t).subscribe();
   }
 
   edit(t: Task) {
@@ -31,18 +29,11 @@ export class TaskListComponent implements OnInit {
   }
 
   delete(id: number) {
-    this.tasks = this.tasks.filter((t) => t.id !== id);
+    this.svc.deleteTask(id).subscribe(() => this.load());
   }
 
-  onSaved(task: Task) {
-    const index = this.tasks.findIndex((t) => t.id === task.id);
-
-    if (index !== -1) {
-      this.tasks[index] = task; // actualizar tarea existente
-    } else {
-      this.tasks.push(task); // agregar nueva
-    }
-
+  onSaved() {
     this.editing = undefined;
+    this.load();
   }
 }
