@@ -1,0 +1,45 @@
+version: '3.8'  # Versión del formato de Docker Compose utilizada
+
+services:
+  db:
+    image: mysql:8.0  # Imagen oficial de MySQL versión 8.0
+    restart: unless-stopped  # Reinicia el contenedor automáticamente salvo que sea detenido manualmente
+    environment:
+      MYSQL_ROOT_PASSWORD: MiPass123  # Contraseña para el usuario root de MySQL
+      MYSQL_DATABASE: appdb            # Nombre de la base de datos que se crea al iniciar si no existe
+    volumes:
+      - ./db-init:/docker-entrypoint-initdb.d:ro  # Monta el script SQL para inicialización automática (modo solo lectura)
+    ports:
+      - '3310:3306'  # Mapea el puerto 3306 del contenedor al 3310 del host para conexión local (p.ej. Workbench)
+    networks:
+      - app-net  # Conecta el contenedor a la red personalizada 'app-net'
+
+  backend:
+    image: todo-app-backend:1.0  # Imagen propia del backend subida a Docker Hub
+    restart: unless-stopped
+    depends_on:
+      - db  # Indica que el backend depende del servicio db, lo arranca después
+    environment:
+      DB_HOST: db       # Host de la base de datos (nombre del servicio en la red)
+      DB_PORT: 3306     # Puerto donde escucha MySQL dentro de la red docker
+      DB_USER: root     # Usuario para conectarse a la base de datos
+      DB_PASS: MiPass123  # Contraseña del usuario
+      DB_NAME: appdb    # Nombre de la base de datos a usar
+    ports:
+      - '3000:3000'  # Mapea puerto 3000 del contenedor al 3000 local para acceder a la API
+    networks:
+      - app-net  # Se conecta a la misma red para comunicarse con MySQL
+
+  frontend:
+    image: todo-app-frontend:1.0  # Imagen propia del frontend subida a Docker Hub
+    restart: unless-stopped
+    depends_on:
+      - backend  # Espera a que el backend esté arriba antes de arrancar
+    ports:
+      - '4200:80'  # Mapea puerto 80 del contenedor (Nginx) al 4200 local para acceder a la app web
+    networks:
+      - app-net  # También en la misma red para posible comunicación con backend
+
+networks:
+  app-net:
+    driver: bridge  # Red tipo bridge para comunicación interna entre contenedores
