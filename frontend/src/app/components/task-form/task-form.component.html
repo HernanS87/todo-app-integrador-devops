@@ -1,0 +1,12 @@
+<form (ngSubmit)="save()" class="input-group">
+  <input
+    name="title"
+    [(ngModel)]="title"
+    class="form-control"
+    placeholder="Nueva tarea…"
+    required
+  />
+  <button class="btn btn-primary">
+    {{ task ? 'Actualizar' : 'Agregar' }}
+  </button>
+</form>
