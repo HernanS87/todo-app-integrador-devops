@@ -84,3 +84,26 @@ jobs:
 
       - name: Push de imagen del frontend a Docker Hub
         run: docker push hernans87/todo-app-frontend:latest
+
+  deploy:
+    name: Desplegar en EC2  # Nombre del tercer job, que hace el deploy en EC2
+    runs-on: ubuntu-latest  # GitHub ejecuta este job en una máquina Ubuntu virtual
+    needs: build            # Solo se ejecuta si el job "build" fue exitoso
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v3
+        # Aunque no usamos el código aquí, GitHub Actions requiere hacer checkout en cada job
+
+      - name: Desplegar en EC2 vía SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}                     # IP pública de tu instancia EC2
+          username: ${{ secrets.EC2_USER }}                 # Usuario del servidor (en tu caso "ubuntu")
+          key: ${{ secrets.EC2_SSH_KEY }}                   # Clave SSH privada almacenada en la key.pem
+          script: |
+            cd ~/todo-app-integrador-devops                 # Entramos al repo ya clonado en el servidor
+            git pull origin main                            # Actualizamos el código
+            docker-compose down                             # Limpiamos contenedores viejos
+            docker-compose pull                             # Bajamos las nuevas imágenes desde Docker Hub
+            docker-compose up -d --remove-orphans           # Levantamos la app y limpiamos los contenedores huérfanos
